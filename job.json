@@ -1,0 +1,45 @@
+{
+  "Folder": {
+    "Batch_Model_Execution": {
+      "Type": "Folder",
+      "Schedule": {
+        "Days": {
+          "All": "true"
+        },
+        "Time": "12:00"
+      },
+      "Jobs": {
+        "Preprocess_Data": {
+          "Type": "Job:Script",
+          "Command": "python3 /opt/batch_model/preprocess.py",
+          "Host": "your-execution-host",
+          "RunAs": "batchuser"
+        },
+        "Run_Model": {
+          "Type": "Job:Script",
+          "Command": "python3 /opt/batch_model/run_model.py",
+          "Host": "your-execution-host",
+          "RunAs": "batchuser",
+          "Dependencies": [
+            {
+              "Job": "Preprocess_Data",
+              "Type": "Finish"
+            }
+          ]
+        },
+        "Postprocess_Data": {
+          "Type": "Job:Script",
+          "Command": "python3 /opt/batch_model/postprocess.py",
+          "Host": "your-execution-host",
+          "RunAs": "batchuser",
+          "Dependencies": [
+            {
+              "Job": "Run_Model",
+              "Type": "Finish"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

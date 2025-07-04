@@ -1,0 +1,50 @@
+pipeline {
+  agent any
+
+  environment {
+    CONTROL_M_CLI_PATH = "/opt/controlm/ctmcli"
+    CONTROL_M_SERVER = "your-controlm-server"
+    CONTROL_M_USER = credentials('controlm_user')
+    CONTROL_M_PASSWORD = credentials('controlm_password')
+    CONTROL_M_ENV = "dev"
+    EXEC_HOST = "batchuser@your-execution-host"
+    EXEC_DIR = "/opt/batch_model"
+  }
+
+  stages {
+    stage('Build') {
+      steps {
+        echo "Building Control-M deployment package..."
+        sh "${CONTROL_M_CLI_PATH} build ./controlm --output batch_model_deploy.zip"
+      }
+    }
+
+    stage('Test') {
+      steps {
+        echo "Running Python unit tests..."
+        sh 'pytest tests/'
+      }
+    }
+
+    stage('Pre-Copy Scripts to Execution Host') {
+      steps {
+        echo "Copying Python scripts to execution server..."
+        sh """
+          ssh $EXEC_HOST 'mkdir -p $EXEC_DIR'
+          scp scripts/*.py $EXEC_HOST:$EXEC_DIR/
+        """
+      }
+    }
+
+    stage('Deploy & Run Control-M Job') {
+      steps {
+        echo "Deploying and running job via Control-M CLI..."
+        sh """
+          ${CONTROL_M_CLI_PATH} login -u $CONTROL_M_USER -p $CONTROL_M_PASSWORD -s $CONTROL_M_SERVER
+          ${CONTROL_M_CLI_PATH} deploy batch_model_deploy.zip -e $CONTROL_M_ENV
+          ${CONTROL_M_CLI_PATH} run Batch_Model_Execution
+        """
+      }
+    }
+  }
+}
